@@ -39,7 +39,7 @@ export const StatCard = ({ title, value, type = 'neutral', icon: Icon }) => {
     return (
         <Card style={{
             flex: 1,
-            minWidth: '140px',
+            minWidth: '105px',
             background: getBackground(),
             border: `1px solid ${type === 'neutral' ? 'rgba(255,255,255,0.05)' : getColor() + '40'}` // 40 is hex for 25% opacity
         }}>

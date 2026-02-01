@@ -65,9 +65,34 @@ export const handleAuthClick = (callback) => {
         // Prompt the user to select a Google Account and ask for consent to share their data
         // when establishing a new session.
         tokenClient.requestAccessToken({ prompt: 'consent' });
+// ... existing code ...
     } else {
         // Skip display of account chooser and consent dialog for an existing session.
         tokenClient.requestAccessToken({ prompt: '' });
+    }
+};
+
+/**
+ * Attempt silent authentication
+ * @param {function} callback
+ */
+export const trySilentAuth = (callback) => {
+    tokenClient.callback = async (resp) => {
+        if (resp.error !== undefined) {
+             // If silent auth fails (e.g. interaction_required), we just ignore it
+             // and let the user click the Login button manually.
+             console.log("Silent auth failed or required interaction", resp);
+            return;
+        }
+        callback(resp);
+    };
+
+    // Attempt to get token without prompting
+    // This will succeed if the user has a valid session
+    try {
+        tokenClient.requestAccessToken({ prompt: '' });
+    } catch (e) {
+        console.log("Silent auth error", e);
     }
 };
 

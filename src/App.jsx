@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
-import { initializeGapi, initializeGis, handleAuthClick, handleSignoutClick, getValues, insertRow, updateValues, getSheetIdByName, insertColumn, deleteRow, getUserEmail, createSheet } from './services/googleSheets'
+import { trySilentAuth, initializeGapi, initializeGis, handleAuthClick, handleSignoutClick, getValues, insertRow, updateValues, getSheetIdByName, insertColumn, deleteRow, getUserEmail, createSheet } from './services/googleSheets'
 import { parseSheetData, calculateMonthlyTotals } from './utils/sheetParser'
 import { CLIENT_ID, API_KEY } from './lib/config'
 import { Card, StatCard } from './components/ui/Card'
@@ -38,6 +38,15 @@ function App() {
         await Promise.all([initializeGapi(), initializeGis()]);
         console.log('Google API initialized');
         setIsApiReady(true);
+
+        // Attempt silent login
+        trySilentAuth(async (resp) => {
+          if (resp && !resp.error) {
+            console.log("Silent login successful");
+            handleLoginSuccess(resp); // Refactor success logic
+          }
+        });
+
       } catch (error) {
         console.error('Failed to initialize Google API', error);
         setError('Failed to initialize Google API. Check console.');
@@ -52,51 +61,55 @@ function App() {
     }
   }, [currentUser, isAuthenticated]);
 
+  const handleLoginSuccess = async (resp) => {
+    setIsAuthenticated(true);
+    // Get User Email to determine Sheet Name
+    try {
+      const email = await getUserEmail();
+      setUserEmail(email);
+      console.log("Logged in as:", email);
+
+      // Determine Sheet Name
+      // Use mapping if exists, otherwise use username part of email
+      let sheetName = USER_MAPPING[email];
+      if (!sheetName) {
+        sheetName = email.split('@')[0];
+        // Ensure valid sheet name (remove special chars if needed, but email username is usually ok)
+        // Just Capitalize first letter for looks
+        sheetName = sheetName.charAt(0).toUpperCase() + sheetName.slice(1);
+      }
+
+      // Check if sheet exists, if not create and initialize
+      try {
+        await getSheetIdByName(sheetName);
+      } catch (e) {
+        console.log(`Sheet ${sheetName} not found. Creating...`);
+        await createSheet(sheetName);
+        // Initialize with template data
+        // Row 1: Headers
+        await updateValues(`'${sheetName}'!A1`, [['', '項目', '2025/01']]);
+        // Row 2: Assets Header
+        await updateValues(`'${sheetName}'!A2`, [['', '現金與帳戶']]);
+        // Row 3: Asset Item
+        await updateValues(`'${sheetName}'!A3`, [['', '銀行帳戶', '0']]);
+        // Row 15: Liabilities Header (Leave gap)
+        await updateValues(`'${sheetName}'!A15`, [['', '信用卡']]);
+        // Row 16: Liability Item
+        await updateValues(`'${sheetName}'!A16`, [['', '主要信用卡', '0']]);
+      }
+
+      setCurrentUser(sheetName);
+
+    } catch (err) {
+      console.error("Failed to get user info or init sheet", err);
+      alert("Failed to initialize user data: " + err.message);
+    }
+  };
+
   const onLogin = () => {
-    handleAuthClick(async (resp) => {
+    handleAuthClick((resp) => {
       if (resp && !resp.error) {
-        setIsAuthenticated(true);
-        // Get User Email to determine Sheet Name
-        try {
-          const email = await getUserEmail();
-          setUserEmail(email);
-          console.log("Logged in as:", email);
-
-          // Determine Sheet Name
-          // Use mapping if exists, otherwise use username part of email
-          let sheetName = USER_MAPPING[email];
-          if (!sheetName) {
-            sheetName = email.split('@')[0];
-            // Ensure valid sheet name (remove special chars if needed, but email username is usually ok)
-            // Just Capitalize first letter for looks
-            sheetName = sheetName.charAt(0).toUpperCase() + sheetName.slice(1);
-          }
-
-          // Check if sheet exists, if not create and initialize
-          try {
-            await getSheetIdByName(sheetName);
-          } catch (e) {
-            console.log(`Sheet ${sheetName} not found. Creating...`);
-            await createSheet(sheetName);
-            // Initialize with template data
-            // Row 1: Headers
-            await updateValues(`'${sheetName}'!A1`, [['', '項目', '2025/01']]);
-            // Row 2: Assets Header
-            await updateValues(`'${sheetName}'!A2`, [['', '現金與帳戶']]);
-            // Row 3: Asset Item
-            await updateValues(`'${sheetName}'!A3`, [['', '銀行帳戶', '0']]);
-            // Row 15: Liabilities Header (Leave gap)
-            await updateValues(`'${sheetName}'!A15`, [['', '信用卡']]);
-            // Row 16: Liability Item
-            await updateValues(`'${sheetName}'!A16`, [['', '主要信用卡', '0']]);
-          }
-
-          setCurrentUser(sheetName);
-
-        } catch (err) {
-          console.error("Failed to get user info or init sheet", err);
-          alert("Failed to initialize user data: " + err.message);
-        }
+        handleLoginSuccess(resp);
       }
     });
   };
@@ -326,6 +339,53 @@ function App() {
     }
   };
 
+  /* Previous Month Logic */
+  const handleAddPreviousMonth = async () => {
+    if (!currentUser || !parsedData || parsedData.months.length === 0) return;
+
+    const firstMonth = parsedData.months[0];
+    const [yearStr, monthStr] = firstMonth.label.split('/');
+    let year = parseInt(yearStr);
+    let month = parseInt(monthStr);
+
+    month -= 1;
+    if (month < 1) {
+      month = 12;
+      year -= 1;
+    }
+
+    const newMonthLabel = `${year}/${month.toString().padStart(2, '0')}`;
+
+    if (!window.confirm(`新增之前的月份：${newMonthLabel}?`)) return;
+
+    setLoading(true);
+    try {
+      // Insert at the first month's index (should be 2)
+      const insertAt = firstMonth.index;
+      const sheetId = await getSheetIdByName(currentUser);
+      await insertColumn(sheetId, insertAt);
+
+      const colLetter = String.fromCharCode(65 + insertAt);
+      await updateValues(`'${currentUser}'!${colLetter}1`, [[newMonthLabel]]);
+
+      await fetchData();
+
+      // After reload, the new month will be at index 0 of parsed data
+      // We want to stay or switch to it? 
+      // Current behavior: fetchData resets to index 0 if out of bounds, 
+      // but here we are adding at 0. So staying at 0 (or default) will show the NEW month (oldest).
+      // That seems correct behavior for adding "previous".
+      setSelectedMonthIndex(0);
+
+    } catch (err) {
+      console.error("Failed to add previous month", err);
+      alert("新增月份失敗: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const isConfigured = CLIENT_ID !== 'YOUR_CLIENT_ID' && API_KEY !== 'YOUR_API_KEY';
 
   if (!isConfigured) {
@@ -431,26 +491,47 @@ function App() {
               padding: '0.5rem 1rem',
               borderRadius: '2rem'
             }}>
-              <button onClick={handlePrevMonth} disabled={selectedMonthIndex === 0} style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-primary)',
-                opacity: selectedMonthIndex === 0 ? 0.3 : 1,
-                padding: '0.5rem',
-                display: 'flex',
-                cursor: selectedMonthIndex === 0 ? 'default' : 'pointer'
-              }}>
-                <ChevronLeft size={24} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {selectedMonthIndex === 0 && (
+                  <button onClick={handleAddPreviousMonth} style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: '0.5rem',
+                    cursor: 'pointer'
+                  }} title="Add Previous Month">
+                    <Plus size={18} strokeWidth={3} />
+                  </button>
+                )}
+                <button onClick={handlePrevMonth} disabled={selectedMonthIndex === 0} style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-primary)',
+                  opacity: selectedMonthIndex === 0 ? 0.3 : 1,
+                  display: selectedMonthIndex === 0 ? 'none' : 'flex',
+                  padding: '0.5rem',
+                  cursor: selectedMonthIndex === 0 ? 'default' : 'pointer'
+                }}>
+                  <ChevronLeft size={24} />
+                </button>
+              </div>
+
               <h3 style={{ fontSize: '1.1rem', fontWeight: '600', letterSpacing: '0.05em' }}>{currentMonthData.label}</h3>
+
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <button onClick={handleNextMonth} disabled={selectedMonthIndex === parsedData.months.length - 1} style={{
                   background: 'transparent',
                   border: 'none',
                   color: 'var(--text-primary)',
                   opacity: selectedMonthIndex === parsedData.months.length - 1 ? 0 : 1,
+                  padding: '0.5rem',
                   display: selectedMonthIndex === parsedData.months.length - 1 ? 'none' : 'flex',
-                  padding: '0.5rem'
                 }}>
                   <ChevronRight size={24} />
                 </button>
