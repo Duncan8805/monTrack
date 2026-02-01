@@ -102,7 +102,9 @@ function App() {
 
     } catch (err) {
       console.error("Failed to get user info or init sheet", err);
-      alert("Failed to initialize user data: " + err.message);
+      // Safely extract error message
+      const msg = err.result?.error?.message || err.message || JSON.stringify(err);
+      alert("Failed to initialize user data: " + msg);
     }
   };
 
@@ -564,7 +566,7 @@ function App() {
 
 
             {/* Stats Row */}
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
               <StatCard title="資產" value={formatCurrency(currentMonthData.totals.assets)} type="success" icon={Wallet} />
               <StatCard title="投資" value={formatCurrency(currentMonthData.totals.investments)} type="warning" icon={TrendingUp} />
               <StatCard title="負債" value={formatCurrency(currentMonthData.totals.liabilities)} type="danger" icon={CreditCard} />
