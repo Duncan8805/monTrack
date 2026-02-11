@@ -59,7 +59,8 @@ body {
   min-height: 100vh;
   padding-top: var(--safe-area-top);
   padding-bottom: var(--safe-area-bottom);
-  overflow-x: hidden; /* Prevent horizontal scroll on body */
+  overflow-x: hidden;
+  /* Prevent horizontal scroll on body */
 }
 
 #root {
@@ -68,8 +69,10 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden; /* Ensure root also clips overflow */
-  width: 100%; /* Ensure full width */
+  overflow-x: hidden;
+  /* Ensure root also clips overflow */
+  width: 100%;
+  /* Ensure full width */
 }
 
 /* Utilities */
@@ -158,4 +161,8 @@ button {
 .modal-overlay {
   background: rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(4px);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }

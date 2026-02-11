@@ -1,6 +1,10 @@
 
 import { useState, useEffect, useMemo } from 'react'
-import { trySilentAuth, initializeGapi, initializeGis, handleAuthClick, handleSignoutClick, getValues, insertRow, updateValues, getSheetIdByName, insertColumn, deleteRow, getUserEmail, createSheet } from './services/googleSheets'
+import * as realService from './services/googleSheets'
+import * as mockService from './services/mockSheets'
+
+const isMock = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mock') === 'true';
+const { trySilentAuth, initializeGapi, initializeGis, handleAuthClick, handleSignoutClick, getValues, insertRow, updateValues, getSheetIdByName, insertColumn, deleteRow, getUserEmail, createSheet } = isMock ? mockService : realService;
 import { parseSheetData, calculateMonthlyTotals } from './utils/sheetParser'
 import { CLIENT_ID, API_KEY } from './lib/config'
 import { Card, StatCard } from './components/ui/Card'
@@ -566,7 +570,7 @@ function App() {
 
 
             {/* Stats Row */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <div className="stats-container">
               <StatCard title="資產" value={formatCurrency(currentMonthData.totals.assets)} type="success" icon={Wallet} />
               <StatCard title="投資" value={formatCurrency(currentMonthData.totals.investments)} type="warning" icon={TrendingUp} />
               <StatCard title="負債" value={formatCurrency(currentMonthData.totals.liabilities)} type="danger" icon={CreditCard} />

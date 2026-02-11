@@ -39,24 +39,34 @@ export const StatCard = ({ title, value, type = 'neutral', icon: Icon }) => {
     return (
         <Card style={{
             flex: 1,
-            minWidth: '105px',
+            minWidth: '160px', // Increased width to fit longer numbers
+            padding: '1rem',
             background: getBackground(),
-            border: `1px solid ${type === 'neutral' ? 'rgba(255,255,255,0.05)' : getColor() + '40'}` // 40 is hex for 25% opacity
+            border: `1px solid ${type === 'neutral' ? 'rgba(255,255,255,0.05)' : getColor() + '40'}`, // 40 is hex for 25% opacity
+            boxShadow: '0 4px 12px 0 rgba(0, 0, 0, 0.1)' // Smaller shadow to prevent clipping in scroll container
         }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.25rem' }}>
                 <div style={{
-                    padding: '8px',
+                    padding: '4px',
                     borderRadius: '50%',
                     background: type === 'neutral' ? 'rgba(255,255,255,0.05)' : `${getColor()}20`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
                 }}>
-                    {Icon && <Icon size={18} color={getColor()} />}
+                    {Icon && <Icon size={14} color={getColor()} />}
                 </div>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>{title}</span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 500, whiteSpace: 'nowrap' }}>{title}</span>
             </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            <div style={{
+                fontSize: 'clamp(1rem, 5vw, 1.5rem)',
+                fontWeight: 'bold',
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.05em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+            }}>
                 {value}
             </div>
         </Card>
