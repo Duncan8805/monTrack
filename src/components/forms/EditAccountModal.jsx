@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Card } from '../ui/Card';
 import { X } from 'lucide-react';
 
@@ -47,7 +48,7 @@ export const EditAccountModal = ({ isOpen, onClose, onConfirm, onDelete, account
         }
     };
 
-    return (
+    return createPortal(
         <div style={{
             position: 'fixed',
             top: 0,
@@ -167,6 +168,7 @@ export const EditAccountModal = ({ isOpen, onClose, onConfirm, onDelete, account
                     </div>
                 </form>
             </Card>
-        </div>
+        </div>,
+        document.body
     );
 };
