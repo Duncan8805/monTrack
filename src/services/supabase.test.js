@@ -104,4 +104,49 @@ describe('Supabase Service', () => {
             }]);
         });
     });
+    describe('addPreviousMonth', () => {
+        it('should copy balances from next month to new previous month', async () => {
+            const nextMonthLabel = '2025/02';
+            const newMonthLabel = '2025/01';
+            const userId = 'user-123';
+
+            const mockBalances = [
+                { account_id: 'acc-1', amount: 500, user_id: userId, month: nextMonthLabel },
+                { account_id: 'acc-2', amount: 1000, user_id: userId, month: nextMonthLabel }
+            ];
+
+            // Mock Fetch Balances
+            const selectBalancesFn = vi.fn().mockResolvedValue({ data: mockBalances, error: null });
+
+            // Mock Insert Balances
+            const insertBalancesFn = vi.fn().mockResolvedValue({ error: null });
+
+            supabase.from.mockImplementation((table) => {
+                if (table === 'balances') {
+                    return {
+                        select: vi.fn().mockReturnValue({
+                            eq: vi.fn().mockReturnValue({
+                                eq: selectBalancesFn // Chain: select('*').eq().eq()
+                            })
+                        }),
+                        insert: insertBalancesFn
+                    };
+                }
+            });
+
+            const result = await import('./supabase').then(mod => mod.addPreviousMonth(newMonthLabel, nextMonthLabel, userId));
+
+            expect(result).toBe(true);
+
+            // Verify Fetch
+            expect(selectBalancesFn).toHaveBeenCalled();
+
+            // Verify Insert
+            const expectedInsert = [
+                { user_id: userId, account_id: 'acc-1', month: newMonthLabel, amount: 500 },
+                { user_id: userId, account_id: 'acc-2', month: newMonthLabel, amount: 1000 }
+            ];
+            expect(insertBalancesFn).toHaveBeenCalledWith(expectedInsert);
+        });
+    });
 });

@@ -128,11 +128,36 @@ export const deleteRow = async (sheetId, rowIndex) => {
     return {};
 };
 
-export const insertColumn = async (sheetId, colIndex) => {
+
+
+export const addPreviousMonth = async (newMonthLabel, nextMonthLabel, userId) => {
     await delay(300);
-    console.log(`[Mock] insertColumn at ${colIndex}`);
-    mockData.forEach(row => {
-        row.splice(colIndex, 0, '');
-    });
-    return {};
+    console.log(`[Mock] addPreviousMonth: ${newMonthLabel}, copying from ${nextMonthLabel}`);
+
+    // In this mock, we just need to update the data structure to include the new month column
+    // The data structure is [Info, Category, ...Months]
+    // Month labels are in row 0, starting from index 2
+
+    // Find where to insert
+    const headerRow = mockData[0];
+    // We expect to insert at index 2 (before the first month)
+    const insertIndex = 2;
+
+    // Update header
+    headerRow.splice(insertIndex, 0, newMonthLabel);
+
+    // Update all other rows
+    for (let i = 1; i < mockData.length; i++) {
+        const row = mockData[i];
+        // If it's a category header (only 2 cols), mock doesn't strictly enforce length but good to keep consistent
+        if (row.length >= 2) {
+            // Copy value from the "next" month (which was at insertIndex before splice, now at insertIndex+1? No, before splice it is at insertIndex)
+            // Wait, splice inserts BEFORE. So if we insert at 2, the old 2 becomes 3.
+            // We want to copy the value from the old 2 (now 3) to the new 2.
+            const valueToCopy = row[insertIndex] || '';
+            row.splice(insertIndex, 0, valueToCopy);
+        }
+    }
+
+    return true;
 };

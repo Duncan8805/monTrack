@@ -7,12 +7,9 @@ export default defineConfig({
   base: '/monTrack/',
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'happy-dom',
     setupFiles: './src/test/setup.js',
     server: {
-      deps: {
-        inline: ['@asamuzakjp/css-color']
-      },
     },
     alias: [{ find: /\.css$/, replacement: '/src/test/styleMock.js' }],
   },

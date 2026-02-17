@@ -132,6 +132,11 @@ function App() {
     if (parsedData && selectedMonthIndex < parsedData.months.length - 1) setSelectedMonthIndex(prev => prev + 1);
   };
 
+  const openEditModal = (account) => {
+    setEditingAccount(account);
+    setIsEditModalOpen(true);
+  };
+
   // Actions
   const handleAddAccount = async ({ name, type, balance }) => {
     if (!session?.user) return;
@@ -212,10 +217,31 @@ function App() {
       alert("Error adding month: " + err.message);
     }
   };
-  // Previous Month Logic - Simplified for now, similar to add month but reversed logic is tricky with DB
-  // Let's skip 'Add Previous Month' for now unless critical, or implement basic version
+  // Previous Month Logic
   const handleAddPreviousMonth = async () => {
-    alert("目前只支援新增下個月");
+    if (!parsedData || parsedData.months.length === 0) return;
+    const firstMonth = parsedData.months[0];
+    const [yearStr, monthStr] = firstMonth.label.split('/');
+    let year = parseInt(yearStr);
+    let month = parseInt(monthStr);
+
+    month -= 1;
+    if (month < 1) {
+      month = 12;
+      year -= 1;
+    }
+    const newMonthLabel = `${year}/${month.toString().padStart(2, '0')}`;
+
+    if (!window.confirm(`補上個月份：${newMonthLabel}?`)) return;
+
+    try {
+      await supabaseService.addPreviousMonth(newMonthLabel, firstMonth.label, session.user.id);
+      await fetchData(session.user.id);
+      // Select the new month (it will be index 0 after sort)
+      setSelectedMonthIndex(0);
+    } catch (err) {
+      alert("Error adding previous month: " + err.message);
+    }
   }
 
 
@@ -334,17 +360,35 @@ function App() {
               borderRadius: '2rem'
             }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <button onClick={handlePrevMonth} disabled={selectedMonthIndex === 0} style={{
+                <button onClick={handlePrevMonth} disabled={selectedMonthIndex === 0 && !parsedData} style={{
                   background: 'transparent',
                   border: 'none',
                   color: 'var(--text-primary)',
-                  opacity: selectedMonthIndex === 0 ? 0.3 : 1,
-                  display: selectedMonthIndex === 0 ? 'none' : 'flex',
+                  display: 'flex',
                   padding: '0.5rem',
-                  cursor: selectedMonthIndex === 0 ? 'default' : 'pointer'
+                  cursor: 'pointer',
+                  opacity: selectedMonthIndex === 0 ? 0.3 : 1
                 }}>
                   <ChevronLeft size={24} />
                 </button>
+                {selectedMonthIndex === 0 && (
+                  <button onClick={handleAddPreviousMonth} style={{
+                    background: 'var(--text-accent)',
+                    border: 'none',
+                    color: '#0f172a',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: '-1.5rem', // Overlap or position near
+                    marginRight: '0.5rem',
+                    zIndex: 10
+                  }} title="Add Previous Month">
+                    <Plus size={14} strokeWidth={3} />
+                  </button>
+                )}
               </div>
 
               <h3 style={{ fontSize: '1.1rem', fontWeight: '600', letterSpacing: '0.05em' }}>{currentMonthData.label}</h3>

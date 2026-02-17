@@ -214,3 +214,40 @@ export const addMonth = async (newMonthLabel, previousMonthLabel, userId) => {
         throw error;
     }
 };
+
+/**
+ * Add a previous month (copy balances from the next month, which is the current oldest)
+ */
+export const addPreviousMonth = async (newMonthLabel, nextMonthLabel, userId) => {
+    try {
+        // Fetch all balances for the "next" month (chronologically next, which is the current oldest in DB)
+        const { data: nextBalances, error: fetchError } = await supabase
+            .from('balances')
+            .select('*')
+            .eq('month', nextMonthLabel)
+            .eq('user_id', userId);
+
+        if (fetchError) throw fetchError;
+
+        if (!nextBalances || nextBalances.length === 0) return;
+
+        // Prepare new balances
+        const newBalances = nextBalances.map(b => ({
+            user_id: userId,
+            account_id: b.account_id,
+            month: newMonthLabel,
+            amount: b.amount // Copy balance over
+        }));
+
+        const { error: insertError } = await supabase
+            .from('balances')
+            .insert(newBalances);
+
+        if (insertError) throw insertError;
+
+        return true;
+    } catch (error) {
+        console.error('Error adding previous month:', error);
+        throw error;
+    }
+};
