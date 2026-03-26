@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/monTrack/',
+  base: process.env.CAPACITOR_BUILD ? './' : '/monTrack/',
   test: {
     globals: true,
     environment: 'happy-dom',

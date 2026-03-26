@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MonTrack</title>
     <!-- Google Identity Services -->
@@ -12,6 +12,18 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.onerror = function(msg, url, line, col, error) {
+        document.body.innerHTML += '<div style="color:red;z-index:9999;position:absolute;top:0;left:0;padding:20px;background:white;width:100%;height:100vh;">' + 
+          'Error: ' + msg + '<br>Line: ' + line + 
+          '<br>ErrorObj: ' + (error ? error.stack : '') + '</div>';
+        return false;
+      };
+      window.addEventListener("unhandledrejection", function(event) {
+        document.body.innerHTML += '<div style="color:red;z-index:9999;position:absolute;top:200px;left:0;padding:20px;background:white;width:100%;">' + 
+          'Unhandled Promise Rejection: ' + event.reason + '</div>';
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

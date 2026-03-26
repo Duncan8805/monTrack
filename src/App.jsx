@@ -2,6 +2,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import * as supabaseService from './services/supabase'
 import { supabase } from './lib/supabaseClient'
+import { App as CapacitorApp } from '@capacitor/app'
+import { Capacitor } from '@capacitor/core'
 import { parseSheetData, calculateMonthlyTotals } from './utils/sheetParser' // We might need to adjust this or mapped data
 import { Card } from './components/ui/Card'
 import { CollapsibleSection } from './components/ui/CollapsibleSection'
@@ -49,7 +51,35 @@ function App() {
       }
     })
 
-    return () => subscription.unsubscribe()
+    let appUrlListener = null;
+    if (Capacitor.isNativePlatform()) {
+      appUrlListener = CapacitorApp.addListener('appUrlOpen', async (event) => {
+        const url = event.url;
+        if (url.includes('#access_token=')) {
+          const hashString = url.split('#')[1];
+          const urlParams = new URLSearchParams(hashString);
+          const accessToken = urlParams.get('access_token');
+          const refreshToken = urlParams.get('refresh_token');
+          
+          if (accessToken && refreshToken) {
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+            if (error) {
+              console.error('Error setting session from deep link:', error);
+            }
+          }
+        }
+      });
+    }
+
+    return () => {
+      subscription.unsubscribe();
+      if (appUrlListener) {
+        appUrlListener.then(listener => listener.remove());
+      }
+    };
   }, [])
 
   const handleLogin = async (e) => {
@@ -57,10 +87,14 @@ function App() {
     setLoading(true)
     setLoginMessage('')
     try {
+      const redirectUrl = Capacitor.isNativePlatform()
+        ? 'montrack://login-callback'
+        : window.location.origin + import.meta.env.BASE_URL;
+        
       const { error } = await supabase.auth.signInWithOtp({
         email: loginEmail,
         options: {
-          emailRedirectTo: window.location.origin + import.meta.env.BASE_URL,
+          emailRedirectTo: redirectUrl,
         },
       })
       if (error) throw error
